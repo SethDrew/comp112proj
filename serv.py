@@ -1,11 +1,17 @@
 import socket
 import sys
-from ds import *
+import ds
+
 
 
 if len(sys.argv) < 2:
 	print "Usage: "+ sys.argv[0]+" port"
 	sys.exit();
+
+data = ds.Dict()
+f = open("serverdata.txt", "r")
+data.data = eval(f.read())
+f.close()
 
 PORT = int(sys.argv[1])
 HOST = 'localhost'
