@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python serv.py 8001 &
