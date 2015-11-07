@@ -1,6 +1,6 @@
 import time
 import socket
-
+ 	
 
 class TTLDict:
 	def __init__(self, TTL = 10):
@@ -42,7 +42,22 @@ class Proxy:
 				peers.remove(i)
 	def pingserver(self):
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		sock.connect((self.srvname, self.srvport))
-		sock.send("hello")
+		tmp = sock.connect_ex((self.srvname, self.srvport))
+		if tmp == 0:
+			print "Connection available"
+		else:
+			print tmp
+	def get(self, key):
+		ret = self.data.get(key)
+		if ret == None:
+			print "Proxy does not contain key"
+		else: 
+			# for proxy in the list, send a UDP question: do you contain something?
+			print ret
+			#step 1: ask peers
+			#step 2: get the file from the server
+			#do this asynchronously and provide the most recent?
+
+
 
 
