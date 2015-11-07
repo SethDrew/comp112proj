@@ -2,6 +2,7 @@ import argparse
 import socket
 import sys
 import ds
+from proxy import Proxy
 
 
 HOST = 'localhost'
@@ -9,10 +10,15 @@ BUFSIZE = 1024
 MAX_CONNECTIONS = 5
 
 
-def accept_connections(socket):
+def accept_connections(socket, proxy):
+
     while True:
         connection, address = sock.accept()
         buf = connection.recv(BUFSIZE)
+
+        # If it's an HTTP request, forward through the proxy
+        # If it's a request to share chache do something else
+
         if buf:
             print buf
 
@@ -26,7 +32,9 @@ def start_server(port):
     sock.bind((HOST, port))
     sock.listen(MAX_CONNECTIONS) # become a server socket
 
-    accept_connections(sock)
+    proxy = Proxy("Server Name", port)
+
+    accept_connections(sock, proxy)
 
 
 def parse_args():
