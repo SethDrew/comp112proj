@@ -13,7 +13,7 @@ MAX_CONNECTIONS = 5
 def accept_connections(socket, proxy):
 
     while True:
-        connection, address = sock.accept()
+        connection, address = socket.accept()
         buf = connection.recv(BUFSIZE)
 
         # If it's an HTTP request, forward through the proxy

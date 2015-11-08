@@ -30,11 +30,11 @@ class TTLDict:
 
 
 class Dict: # dictionary wrapper class for consistency.
-	def __init__(self):
-		self.data = {}
+    def __init__(self):
+        self.data = {}
 
-	def add(self, key, value):
-		self.data[key] = value
+    def add(self, key, value):
+        self.data[key] = value
 
-	def get(self, key):
+    def get(self, key):
         return self.data.get(key)
