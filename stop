@@ -1,0 +1,2 @@
+#!/bin/bash
+kill $(ps aux | grep "[p]ython server.py" | awk '{print $2}')
