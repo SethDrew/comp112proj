@@ -7,11 +7,11 @@ class TTLDict:
     """ Like a normal dictionary, but keeps TTL with value """
 
     def __init__(self, TTL=10):
-		self.TTL = TTL
-		self.data = {}
+        self.TTL = TTL
+        self.data = {}
 
     def add(self, key, value):
-		self.data[key] = (time.time() + self.TTL, value)
+        self.data[key] = (time.time() + self.TTL, value)
 
     def get(self, key):
         self._clean()
