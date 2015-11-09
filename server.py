@@ -1,5 +1,6 @@
 import argparse
 import socket
+import select
 import sys
 import ds
 from proxy import Proxy
@@ -14,13 +15,14 @@ def accept_connections(socket, proxy):
 
     while True:
         connection, address = socket.accept()
+        # Loop the recv
         buf = connection.recv(BUFSIZE)
 
         # If it's an HTTP request, forward through the proxy
         # If it's a request to share chache do something else
 
         if buf:
-            print buf
+            proxy.forward(buf)
 
 
 def start_server(port):
@@ -31,6 +33,8 @@ def start_server(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((HOST, port))
     sock.listen(MAX_CONNECTIONS) # become a server socket
+
+    print "Server running on Port", port
 
     proxy = Proxy("Server Name", port)
 
