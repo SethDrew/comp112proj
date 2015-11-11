@@ -1,4 +1,9 @@
 from ds import TTLDict
+import socket
+
+
+WEB_SERVER_PORT = 80
+
 
 class Proxy:
     peers = [] # array of [(hostname, port), (hostname, port)]
@@ -36,4 +41,7 @@ class Proxy:
             #do this asynchronously and provide the most recent?
 
     def forward(self, msg):
-        print "Forwarding:", msg
+        host = [x.split()[1] for x in msg.splitlines() if x.startswith("Host:")][0]
+        forward_socket = socket.create_connection((host, WEB_SERVER_PORT))
+        forward_socket.send(msg)
+        return "FORWARDED THROUGH PROXY:\n" + forward_socket.recv(1024)
