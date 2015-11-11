@@ -22,7 +22,8 @@ def accept_connections(socket, proxy):
         # If it's a request to share chache do something else
 
         if buf:
-            proxy.forward(buf)
+            connection.send(str(proxy.forward(buf)))
+        connection.close()
 
 
 def start_server(port):
@@ -34,7 +35,7 @@ def start_server(port):
     sock.bind((HOST, port))
     sock.listen(MAX_CONNECTIONS) # become a server socket
 
-    print "Server running on Port", port
+    print "Proxy running on Port", port
 
     proxy = Proxy("Server Name", port)
 
