@@ -30,6 +30,7 @@ class Proxy:
             print "Proxy does not contain key"
         else:
             # for proxy in the list, send a UDP question: do you contain something?
+            # implement multicasting
             print ret
             #step 1: ask peers
             #step 2: get the file from the server

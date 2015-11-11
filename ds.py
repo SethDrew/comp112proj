@@ -38,3 +38,37 @@ class Dict: # dictionary wrapper class for consistency.
 
     def get(self, key):
         return self.data.get(key)
+
+
+class MessageBuilder:
+    """
+    message type:
+        0: get broadcast
+        1: not found response
+        2: found key response
+        3: ERROR
+    """
+    @staticmethod
+    def ProxyPeerReq(key):
+        return {
+        'type': 0,
+        'key' : key
+        }
+    def ProxyPeerResp(data):
+        if data == None: 
+            return {
+                'type': 3
+            }
+        if data == "":
+            return {
+                'type': 1
+            }
+        else:
+            return{
+                'type': 2,
+                'data': 3
+            }
+        
+
+
+
