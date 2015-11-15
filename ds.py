@@ -15,8 +15,7 @@ class TTLDict:
 
     def get(self, key):
         self._clean()
-
-        return self.data.get(key, default=(None, None))[1]
+        return self.data.get(key, (None, None))[1]
 
     def _clean(self):
 

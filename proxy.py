@@ -42,7 +42,11 @@ class Proxy:
             #do this asynchronously and provide the most recent?
 
     def forward(self, msg):
+        key = msg.split("\n")[0].split(" ")[1]
+        if self.data.get(key) != None:
+            return "PROXY:: found data:" + self.data.get(key)
         host = [x.split()[1] for x in msg.splitlines() if x.startswith("Host:")][0]
         forward_socket = socket.create_connection((host, WEB_SERVER_PORT))
         forward_socket.send(msg)
-        return "FORWARDED THROUGH PROXY:\n" + forward_socket.recv(1024)
+        self.data.add(key, forward_socket.recv(1024))
+        return "FORWARDED THROUGH PROXY:\n" + self.data.get(key)
