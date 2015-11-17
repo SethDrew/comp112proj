@@ -28,17 +28,6 @@ class TTLDict:
         self.data = data
 
 
-class Dict: # dictionary wrapper class for consistency.
-    def __init__(self):
-        self.data = {}
-
-    def add(self, key, value):
-        self.data[key] = value
-
-    def get(self, key):
-        return self.data.get(key)
-
-
 class MessageBuilder:
     """
     message type:
@@ -50,11 +39,12 @@ class MessageBuilder:
     @staticmethod
     def ProxyPeerReq(key):
         return {
-        'type': 0,
-        'key' : key
+            'type': 0,
+            'key' : key
         }
+
     def ProxyPeerResp(data):
-        if data == None: 
+        if data == None:
             return {
                 'type': 3
             }
@@ -63,11 +53,7 @@ class MessageBuilder:
                 'type': 1
             }
         else:
-            return{
+            return {
                 'type': 2,
                 'data': 3
             }
-        
-
-
-
