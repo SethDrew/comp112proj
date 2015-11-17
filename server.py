@@ -29,7 +29,7 @@ def accept_connections(socket, proxy):
 def start_server(port):
     data = {}
     with open("serverdata.txt", "r") as f:
-        data.data = eval(f.read())
+        data = eval(f.read())
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((HOST, port))
@@ -37,7 +37,7 @@ def start_server(port):
 
     print "Proxy running on Port", port
 
-    proxy = Proxy("Server Name", port)
+    proxy = Proxy()
 
     accept_connections(sock, proxy)
 

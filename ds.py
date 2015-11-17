@@ -10,6 +10,9 @@ class TTLDict:
         self.TTL = TTL
         self.data = {}
 
+    def contains(self, key):
+        return key in self.data
+
     def add(self, key, value):
         self.data[key] = (time.time() + self.TTL, value)
 
