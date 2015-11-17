@@ -27,7 +27,7 @@ def accept_connections(socket, proxy):
 
 
 def start_server(port):
-    data = ds.Dict()
+    data = {}
     with open("serverdata.txt", "r") as f:
         data.data = eval(f.read())
 
