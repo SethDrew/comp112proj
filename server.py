@@ -1,5 +1,6 @@
 import argparse
 import socket
+import asyncore
 import select
 import sys
 import ds
@@ -9,6 +10,24 @@ from proxy import Proxy
 HOST = 'localhost'
 BUFSIZE = 1024
 MAX_CONNECTIONS = 5
+
+
+class Server(asyncore.dispatcher):
+
+    def __init__(self, address):
+        asyncore.dispatcher.__init__(self)
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.bind(address)
+        self.address = self.socket.getsockname()
+        self.listen(MAX_CONNECTIONS)
+        self.proxy = Proxy()
+
+    def handle_accept(self):
+        client = self.accept()
+        self.proxy.forward(client)
+
+    def handle_close(self):
+
 
 
 def accept_connections(socket, proxy):
@@ -31,15 +50,20 @@ def start_server(port):
     with open("serverdata.txt", "r") as f:
         data = eval(f.read())
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind((HOST, port))
-    sock.listen(MAX_CONNECTIONS) # become a server socket
+    address = (HOST, port)
+    server = Server(address)
 
-    print "Proxy running on Port", port
+    asyncore.loop()
 
-    proxy = Proxy()
+    #main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #main_socket.bind((HOST, port))
+    #main_socket.listen(MAX_CONNECTIONS) # become a server socket
 
-    accept_connections(sock, proxy)
+    #print "Proxy running on Port", port
+
+    #proxy = Proxy()
+
+    #accept_connections(sock, proxy)
 
 
 def parse_args():

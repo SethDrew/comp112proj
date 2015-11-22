@@ -1,5 +1,6 @@
 from ds import TTLDict
 import socket
+import asyncore
 
 
 WEB_SERVER_PORT = 80
