@@ -1,14 +1,17 @@
 from ds import TTLDict
 import socket
 import asyncore
+import logging
+import sys
 
 
 WEB_SERVER_PORT = 80
 
 
-class Proxy:
+class Proxy(asyncore.dispatcher_with_send):
 
-    def __init__(self):
+    def __init__(self, socket):
+        asyncore.dispatcher_with_send.__init__(self, socket)
         self.data = TTLDict()
         self.peers = [] # array of [(hostname, port), (hostname, port)]
 
@@ -19,6 +22,16 @@ class Proxy:
         self.peers = [
             (h, p) for (h, p) in self.peers if h != hostname and p != port
         ]
+
+    def handle_write(self):
+        return
+
+    def handle_read(self):
+        message = self.recv(1024)
+        self.send(self.forward(message))
+
+    def handle_close(self):
+        self.close() # TODO
 
     """ Currently this function is broken, don't use it. """
     def get(self, key):
@@ -45,8 +58,12 @@ class Proxy:
             return "PROXY:: found data:" + self.data.get(key)
 
         host = [x.split()[1] for x in msg.splitlines() if x.startswith("Host:")][0]
-        forward_socket = socket.create_connection((host, WEB_SERVER_PORT))
-        forward_socket.send(msg)
-        self.data.add(key, forward_socket.recv(1024))
+        self.connect((host, WEB_SERVER_PORT))
+        self.send(msg)
+        try:
+            self.data.add(key, self.recv(1024))
+            return "FORWARDED THROUGH PROXY:\n" + self.data.get(key)
+        except Exception:
+            return "FORWARDED THROUGH PROXY: resource unavailable\n"
 
-        return "FORWARDED THROUGH PROXY:\n" + self.data.get(key)
+
