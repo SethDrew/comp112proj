@@ -63,6 +63,6 @@ class Proxy(asyncore.dispatcher_with_send):
         self.send(msg)
         try:
             self.data.add(key, self.recv(1024))
-        except Exception, e:
+        except Exception as e:
             self.data.add(key, str(e) + '\n')
         return "FORWARDED THROUGH PROXY:\n" + self.data.get(key)
