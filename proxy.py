@@ -29,6 +29,7 @@ class Proxy(asyncore.dispatcher_with_send):
     def handle_read(self):
         message = self.recv(1024)
         self.send(self.forward(message))
+        self.close() # TODO: Do we want this
 
     def handle_close(self):
         self.close() # TODO
@@ -62,8 +63,6 @@ class Proxy(asyncore.dispatcher_with_send):
         self.send(msg)
         try:
             self.data.add(key, self.recv(1024))
-            return "FORWARDED THROUGH PROXY:\n" + self.data.get(key)
-        except Exception:
-            return "FORWARDED THROUGH PROXY: resource unavailable\n"
-
-
+        except Exception, e:
+            self.data.add(key, str(e) + '\n')
+        return "FORWARDED THROUGH PROXY:\n" + self.data.get(key)
