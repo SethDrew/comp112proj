@@ -2,7 +2,7 @@ import argparse
 import socket
 import asyncore
 import logging
-from proxy import Proxy
+from proxy import Proxy, update_cache, get_cache, search_cache
 
 
 HOST = 'localhost'
@@ -56,20 +56,24 @@ class Handler(asyncore.dispatcher):
             self.proxy.write_buffer += request
             return
 
-        self.proxy = Proxy((HOST, self.proxy_port), (host[0], WEB_SERVER_PORT), request)
+        self.host = host[0]
+        self.proxy = Proxy((HOST, self.proxy_port),
+                           (host[0], WEB_SERVER_PORT),
+                           request)
 
     def handle_write(self):
         logging.debug("Writing to socket")
         if self.proxy:
             logging.debug(self.proxy.read_buffer)
             sent = self.send(self.proxy.read_buffer)
+            update_cache(self.host, self.proxy.read_buffer[:sent])
             self.proxy.read_buffer = self.proxy.read_buffer[sent:]
 
     def handle_close(self):
         while self.writable():
             self.handle_write()
 
-        logging.debug("Connection closed")
+        logging.debug("FINAL CACHE %s", get_cache())
 
         self.close()
 
