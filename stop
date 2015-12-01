@@ -1,2 +1,4 @@
 #!/bin/bash
 kill $(ps aux | grep "[p]ython server.py" | awk '{print $2}')
+> log_proxy
+kill $(ps aux | grep "[t]ail -F log_proxy" | awk '{print $2}')

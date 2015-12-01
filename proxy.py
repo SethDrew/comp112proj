@@ -1,19 +1,26 @@
-from ds import TTLDict
 import socket
 import asyncore
 import logging
-import sys
 
 
-WEB_SERVER_PORT = 80
+BUFF_SIZE = 4096
+
+LOG_FILE = 'log_proxy'
+logging.basicConfig(filename=LOG_FILE,
+                    level=logging.DEBUG)
 
 
-class Proxy(asyncore.dispatcher_with_send):
+class Proxy(asyncore.dispatcher):
 
-    def __init__(self, socket):
-        asyncore.dispatcher_with_send.__init__(self, socket)
-        self.data = TTLDict()
-        self.peers = [] # array of [(hostname, port), (hostname, port)]
+    def __init__(self, address, destination, request):
+        asyncore.dispatcher.__init__(self)
+        self.read_buffer = ""
+        self.write_buffer = request
+
+        logging.debug("Connecting to %s", destination)
+
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connect(destination)
 
     def add_peer(self, hostname, port): # should do some sort of pinging here
         self.peers.append((hostname, port))
@@ -24,45 +31,21 @@ class Proxy(asyncore.dispatcher_with_send):
         ]
 
     def handle_write(self):
-        return
+        logging.debug(self.write_buffer)
+        sent = self.send(self.write_buffer)
+        self.write_buffer = self.write_buffer[sent:]
+        logging.debug("Length after write: %s", len(self.write_buffer))
+
+    def writable(self):
+        logging.debug("Length? %s", len(self.write_buffer))
+        return len(self.write_buffer)
 
     def handle_read(self):
-        message = self.recv(1024)
-        self.send(self.forward(message))
-        self.close() # TODO: Do we want this
+        self.read_buffer += self.recv(BUFF_SIZE)
 
     def handle_close(self):
-        self.close() # TODO
+        while self.writable():
+            self.handle_write()
 
-    """ Currently this function is broken, don't use it. """
-    def get(self, key):
-        ret = self.data.get(key)
-        if not ret:
-            print "Proxy does not contain key"
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            for (hostname, port) in self.peers:
-                print "Sending query for", key, "to Proxy Peer:", hostname, port
-                sock.sendto(MessageBuilder.ProxyPeerReq(key), (hostname, port))
-            ret, address = sock.recvfrom(4096)
-            print "PROXY:: got from peer: ", ret
-        return ret
-
-            # for proxy in the list, send a UDP question: do you contain something?
-            # implement multicasting
-            #step 1: ask peers
-            #step 2: get the file from the server
-            #do this asynchronously and provide the most recent?
-
-    def forward(self, msg):
-        key = msg.split("\n")[0].split(" ")[1]
-        if self.data.contains(key):
-            return "PROXY:: found data:" + self.data.get(key)
-
-        host = [x.split()[1] for x in msg.splitlines() if x.startswith("Host:")][0]
-        self.connect((host, WEB_SERVER_PORT))
-        self.send(msg)
-        try:
-            self.data.add(key, self.recv(1024))
-        except Exception as e:
-            self.data.add(key, str(e) + '\n')
-        return "FORWARDED THROUGH PROXY:\n" + self.data.get(key)
+        logging.debug("Proxy closing")
+        self.close()
