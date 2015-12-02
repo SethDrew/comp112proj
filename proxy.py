@@ -1,6 +1,7 @@
 import socket
 import asyncore
 import logging
+import ds
 from datetime import datetime, timedelta
 
 
@@ -11,30 +12,30 @@ logging.basicConfig(filename=LOG_FILE,
                     level=logging.DEBUG)
 
 
-CACHE = {}
+CACHE = ds.TTLDict()
 
 def update_cache(key, value):
     global CACHE
 
     print "PROXY:: got value"
     print value
-
-    current_time = datetime.utcnow()
-
     try:
+        current_time = datetime.utcnow()
+
         expiration = ' '.join([
-            x.split()[1:] for x in value.splitlines() if x.startswith("Expires:")
-        ][0])
+            x.split()[1:] for x in value.splitlines() if x.startswith("Expires:")][0])
 
         ttl = datetime.strptime(expiration, "%a, %d %b %Y %H:%M:%S GMT")
         logging.debug("PARSED TTL = %s", ttl)
 
-        time_diff = current_time - ttl
+        time_diff = ttl - current_time
 
-        if time_diff.total_seconds():
-            CACHE[key] = (ttl, CACHE.setdefault(key, (ttl, ""))[1] + str(value))
-    except Exception:
-        logging.debug("No expiration specified...not caching")
+        if time_diff.total_seconds() > 0:
+            CACHE.add(key, value, time_diff.total_seconds) # webpage has given us a timeout value
+        else:
+            CACHE.add(key, value) # default to 10 seconds
+    except IndexError:
+        CACHE.add(key, value) # default to 10 seconds
 
 
 def get_cache():
@@ -42,13 +43,7 @@ def get_cache():
 
 
 def search_cache(key):
-    return CACHE.setdefault(key, "")
-
-
-def clear_expired_entires():
-    for (key, (TTL, value)) in CACHE.iteritems():
-        if TTL < time.time():   #JACOB: is this correct for the TTL value you're using?
-            CACHE.pop(key, None)
+    return CACHE.get(key)
 
 
 class Proxy(asyncore.dispatcher):
