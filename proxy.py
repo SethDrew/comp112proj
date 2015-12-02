@@ -16,22 +16,25 @@ CACHE = {}
 def update_cache(key, value):
     global CACHE
 
-    print "PROXY:: got value" 
+    print "PROXY:: got value"
     print value
 
     current_time = datetime.utcnow()
 
+    try:
+        expiration = ' '.join([
+            x.split()[1:] for x in value.splitlines() if x.startswith("Expires:")
+        ][0])
 
-    expiration = ' '.join([
-        x.split()[1:] for x in value.splitlines() if x.startswith("Expires:")][0])
+        ttl = datetime.strptime(expiration, "%a, %d %b %Y %H:%M:%S GMT")
+        logging.debug("PARSED TTL = %s", ttl)
 
-    ttl = datetime.strptime(expiration, "%a, %d %b %Y %H:%M:%S GMT")
-    logging.debug("PARSED TTL = %s", ttl)
+        time_diff = current_time - ttl
 
-    time_diff = current_time - ttl
-
-    if time_diff.total_seconds():
-        CACHE[key] = (ttl, CACHE.setdefault(key, (ttl, ""))[1] + str(value))
+        if time_diff.total_seconds():
+            CACHE[key] = (ttl, CACHE.setdefault(key, (ttl, ""))[1] + str(value))
+    except Exception:
+        logging.debug("No expiration specified...not caching")
 
 
 def get_cache():
@@ -87,3 +90,18 @@ class Proxy(asyncore.dispatcher):
 
         logging.debug("Proxy closing")
         self.close()
+
+
+class Bloom_Advert:
+    def __init__(self, bit_vector):
+        self.bit_vector = bit_vector
+
+
+class Cache_Req:
+    def __init__(self, http_request):
+        self.request = http_request
+
+
+class Cache_Res:
+    def __init__(self, http_response):
+        self.response = http_response
