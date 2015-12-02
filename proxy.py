@@ -46,7 +46,7 @@ def search_cache(key):
     return CACHE.get(key)
 
 
-class Proxy(asyncore.dispatcher):
+class Forwarding_Agent(asyncore.dispatcher):
 
     def __init__(self, address, destination, request):
         asyncore.dispatcher.__init__(self)
