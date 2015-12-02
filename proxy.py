@@ -17,6 +17,8 @@ CACHE = ds.TTLDict()
 def update_cache(key, value):
     global CACHE
 
+    print "PROXY:: got value"
+    print value
     try:
         current_time = datetime.utcnow()
 
@@ -44,7 +46,7 @@ def search_cache(key):
     return CACHE.get(key)
 
 
-class Proxy(asyncore.dispatcher):
+class Forwarding_Agent(asyncore.dispatcher):
 
     def __init__(self, address, destination, request):
         asyncore.dispatcher.__init__(self)
@@ -83,3 +85,18 @@ class Proxy(asyncore.dispatcher):
 
         logging.debug("Proxy closing")
         self.close()
+
+
+class Bloom_Advert:
+    def __init__(self, bit_vector):
+        self.bit_vector = bit_vector
+
+
+class Cache_Req:
+    def __init__(self, http_request):
+        self.request = http_request
+
+
+class Cache_Res:
+    def __init__(self, http_response):
+        self.response = http_response
