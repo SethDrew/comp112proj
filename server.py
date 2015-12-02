@@ -73,7 +73,7 @@ class Handler(asyncore.dispatcher):
         while self.writable():
             self.handle_write()
 
-        logging.debug("FINAL CACHE %s", get_cache())
+        logging.debug("FINAL CACHE %s", get_cache().data)
 
         self.close()
 

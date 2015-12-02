@@ -6,16 +6,14 @@ class TTLDict:
 
     """ Like a normal dictionary, but keeps TTL with value """
 
-    def __init__(self, TTL=10):
-        self.TTL = TTL
+    def __init__(self):
         self.data = {}
 
     def contains(self, key):
         return key in self.data
 
-    def add(self, key, value):
-        self.data[key] = (time.time() + self.TTL, value)
-
+    def add(self, key, value, TTL=10):
+        self.data[key] = (time.time()+TTL, self.data.setdefault(key, (time.time()+TTL, ""))[1] + str(value))
     def get(self, key):
         self._clean()
         return self.data.get(key, (None, None))[1]
