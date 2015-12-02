@@ -16,11 +16,14 @@ CACHE = {}
 def update_cache(key, value):
     global CACHE
 
+    print "PROXY:: got value" 
+    print value
+
     current_time = datetime.utcnow()
 
+
     expiration = ' '.join([
-        x.split()[1:] for x in value.splitlines() if x.startswith("Expires:")
-    ][0])
+        x.split()[1:] for x in value.splitlines() if x.startswith("Expires:")][0])
 
     ttl = datetime.strptime(expiration, "%a, %d %b %Y %H:%M:%S GMT")
     logging.debug("PARSED TTL = %s", ttl)
@@ -40,7 +43,9 @@ def search_cache(key):
 
 
 def clear_expired_entires():
-    return
+    for (key, (TTL, value)) in CACHE.iteritems():
+        if TTL < time.time():   #JACOB: is this correct for the TTL value you're using?
+            CACHE.pop(key, None)
 
 
 class Proxy(asyncore.dispatcher):

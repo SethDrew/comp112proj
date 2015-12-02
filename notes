@@ -1,4 +1,6 @@
-bloom filter (check whether url is present in someone else's cache)
+bloom filter (check whether url is present in someone else's cache). 
+
+	- 10 second advertisement window
 
 I am assuming that each client knows which proxy it needs to talk to when it wants to reach the server.
 
@@ -10,3 +12,6 @@ How do we want to store data in the proxy?
 
 How do we want to let proxies talk to eachother?
 	- Incoming proxy connections talk on different ports than .
+
+
+
