@@ -2,7 +2,7 @@ import socket
 import asyncore
 import logging
 import pickle
-from cache import get_cache, search_cache, update_cache
+from cache import Cache
 
 
 HOST = 'localhost'
@@ -19,6 +19,8 @@ CACHE_RES = '3'
 LOG_FILE = 'log_proxy'
 logging.basicConfig(filename=LOG_FILE,
                     level=logging.DEBUG)
+
+CACHE = Cache()
 
 
 class Forwarding_Agent(asyncore.dispatcher):
@@ -62,7 +64,7 @@ class Proxy_Mixin:
             self.write_buffer = self.write_buffer[sent:]
 
     def intra_proxy_read(self, request):
-        if request[0] == PROXY_SENTINEL:
+        if request and request[0] == PROXY_SENTINEL:
             global BLOOM_FILTERS
             self.intra_proxy = True
 
@@ -95,6 +97,9 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
     def handle_read(self):
         logging.debug("Reading from socket")
         request = self.recv(BUFF_SIZE)
+        if not request:
+            return
+        logging.debug(request)
 
         if self.intra_proxy:
             self.write_buffer += request
@@ -122,7 +127,7 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
         if not self.intra_proxy and self.forward:
             logging.debug(self.forward.read_buffer)
             sent = self.send(self.forward.read_buffer)
-            update_cache(self.host, self.forward.read_buffer[:sent])
+            CACHE.update_cache(self.host, self.forward.read_buffer[:sent])
             self.forward.read_buffer = self.forward.read_buffer[sent:]
 
         elif self.intra_proxy:
@@ -133,7 +138,7 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
             self.handle_write()
 
         if not self.intra_proxy:
-            logging.debug("FINAL CACHE %s", get_cache())
+            logging.debug("FINAL CACHE %s", CACHE.get_cache())
             self.close()
 
 
