@@ -54,10 +54,6 @@ def hashfn(item): # some hashes end up being very similar across different words
         (int(hashes[0].hexdigest(), 16)),
         (int(hashes[1].hexdigest(), 16))
     ]
-
-    print "for", item, "we got hash indicies"
-    for val in hash_values:
-        print val % m
     return (
         (1 << hash_values[0] % m) |
         (1 << hash_values[1] % m) |
@@ -71,16 +67,18 @@ def mask(val):
     return bin(hashfn(val))[2:]
 
 class CountingBloom(object):
-    def __init__(self):
-        self.items = [0] * m
+    def __init__(self, items=None):
+        if items:          
+            self.items = items
+
+        else:
+            self.items = [0] * m
 
     def add(self, item):
-        print sum(self.items)
         bits = mask(item)
         for index, bit in enumerate(bits):
             if bit == '1':
                 self.items[index] += 1
-        print self.items
 
     def query(self, item):
         bits = mask(item)
@@ -94,6 +92,9 @@ class CountingBloom(object):
         for index, bit in enumerate(bits):
             if bit == '1' and self.items[index]:
                 self.items[index] -= 1
+    def get_data(self):
+        return self.items
+
 
 """
 TESTING FOR THE FILTER
