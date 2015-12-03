@@ -2,6 +2,7 @@ import socket
 import asyncore
 import logging
 import pickle
+from bloom import hashfn
 from cache import Cache
 
 
@@ -63,23 +64,34 @@ class Proxy_Mixin:
             sent = self.send(self.write_buffer)
             self.write_buffer = self.write_buffer[sent:]
 
-    def intra_proxy_read(self, request):
-        if request and request[0] == PROXY_SENTINEL:
-            global BLOOM_FILTERS
-            self.intra_proxy = True
+    def intra_proxy_read(self, message):
+        if not message or message[0] != PROXY_SENTINEL:
+            self.reading = False
+            return
 
-            message = pickle.loads(request[2:])
-            logging.debug("Received request from proxy: %s", request)
-            if request[1] == BLOOM_ADVERT:
-                # Add our object (representing another proxy) to the BLOOM_FILTERS
-                BLOOM_FILTERS[self] = message.bit_vector
-            elif request[1] == CACHE_REQ:
+        global BLOOM_FILTERS
+        self.intra_proxy = True
+
+        message_type = pickle.loads(message[2:])
+        logging.debug("Received message from proxy: %s", message)
+        if message[1] == BLOOM_ADVERT:
+            # Add our object (representing another proxy) to the BLOOM_FILTERS
+            BLOOM_FILTERS[self] = message.bit_vector
+        elif message[1] == CACHE_REQ:
+            response_message = CACHE.get(message_type.request)
+            if not response:
+                response_message = ERROR
+            response = Cache_Res(response_message)
+            self.write_buffer = PROXY_SENTINEL + CACHE_RES + pickle.dumps(response)
+        elif message[1] == CACHE_RES:
+            # We got a response from a server's cache
+            # TODO: what if the response comes in two different packets?
+            if message_type.response == ERROR:
+                # Spawn a Forwarding_Agent
                 return
-            elif request[1] == CACHE_RES:
-                # We got a response from a server's cache
-                # TODO: Right now we assume the proxy had the thing i.e. check
-                # for false positives
-                self.write_buffer = message.response
+            else:
+                self.write_buffer = message_type.response
+                self.reading = True
 
 
 class Proxy(asyncore.dispatcher, Proxy_Mixin):
@@ -115,6 +127,20 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
                 return
 
             self.host = host[0]
+
+            # TODO: hash host self.host and for each proxy key in BLOOM_FILTERS,
+            # check against it's bloom filter value.
+            # If it exists, use that proxy to get the data
+
+            # TODO: Seth, is this what I'm supposed to do?
+            hashed = hashfn(self.host)
+
+            for (proxy, bloom_filter) in BLOOM_FILTERS.iteritems():
+                if bloom_filter.query(hashed):
+                    # Do something with proxy
+                    return
+
+            # None of the proxies have the host cached
             self.forward = Forwarding_Agent((HOST, self.forward_port),
                                             (host[0], WEB_SERVER_PORT),
                                             request)
@@ -149,8 +175,8 @@ class Proxy_Client(asyncore.dispatcher, Proxy_Mixin):
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect(('localhost', port))
 
-        test = Bloom_Advert(bin(0))
-        self.write_buffer = "@1" + pickle.dumps(test)
+        bloom = Bloom_Advert(bin(0))
+        self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + pickle.dumps(bloom)
 
     def writable(self):
         return self.write_buffer
