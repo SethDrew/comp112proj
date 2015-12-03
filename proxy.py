@@ -90,7 +90,7 @@ class Proxy_Mixin:
                 # Spawn a Forwarding_Agent
                 return
             else:
-                self.write_buffer = message_type.response
+                self.read_buffer = message_type.response
                 self.reading = True
 
 
@@ -137,7 +137,9 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
 
             for (proxy, bloom_filter) in BLOOM_FILTERS.iteritems():
                 if bloom_filter.query(hashed):
-                    # Do something with proxy
+                    logging.debug("A proxy had the request cached")
+                    proxy.write_buffer = PROXY_SENTINEL + CACHE_REQ + self.host
+                    self.forward = proxy
                     return
 
             # None of the proxies have the host cached
