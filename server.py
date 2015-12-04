@@ -1,3 +1,13 @@
+""" 
+Seth Drew and Jacob Apkon
+File: server.py
+
+
+Contains startup logic for a single proxy.
+"""
+
+
+
 import argparse
 import socket
 import asyncore
@@ -14,6 +24,14 @@ logging.basicConfig(filename=LOG_FILE,
                     level=logging.DEBUG)
 
 
+"""
+Purpose: ????
+Constructor: Hostname/port tuple to run server on
+Public methods:
+    handle_accept() :::: Assigns a proxy to new incoming socket activity
+    handle_close() :::: Closes a TCP connection
+
+"""
 class Server(asyncore.dispatcher):
 
     def __init__(self, address):
@@ -32,7 +50,11 @@ class Server(asyncore.dispatcher):
     def handle_close(self):
         self.close()
 
+""" 
+Called when running "source start portno" to instantiate Server class and
+create Proxy_Client for each network proxy supplied at startup.
 
+"""
 def start_server(port, proxies):
     address = (HOST, port)
     server = Server(address)
@@ -43,6 +65,7 @@ def start_server(port, proxies):
     asyncore.loop()
 
 
+""" command line arguments for proxies in the network we need to connect to """
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('port',

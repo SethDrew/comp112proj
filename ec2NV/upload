@@ -1,0 +1,5 @@
+#!/bin/bash
+for var
+do
+	scp -i comp112proj.pem "$var" ec2-user@54.213.219.133:~/proxy
+done

@@ -1,3 +1,17 @@
+""" 
+Seth Drew and Jacob Apkon
+File: cache.py
+
+This file contains:
+    Cache class
+        - Used by proxy to store cached web results
+    TTLDict class 
+        - Wrapper for a python dictionary that implements time to live expiry of entires
+
+
+"""
+
+
 from datetime import datetime, timedelta
 import logging
 
@@ -7,17 +21,24 @@ logging.basicConfig(filename=LOG_FILE,
                     level=logging.DEBUG)
 
 
+"""
+Purpose: Wrapper for a python dictionary implementing time to live expiry for entires
+Constructor: TTLDict() takes no arguments. Uses a default TTL value of 300 seconds
+Public methods:
+    add(key, val, TTL(optional)) :::: Same as dict, optional TTL third argument
+    contains(key)                :::: Same as python dictionary 
+    remove(key)                  :::: Same as python dictionary
+Private methods:
+    _clean()                     :::: removes all expired entires
+"""
 class TTLDict:
-
-    """ Like a normal dictionary, but values have an expiration """
-
     def __init__(self):
         self.data = {}
 
     def contains(self, key):
         return key in self.data
 
-    def add(self, key, value, TTL=timedelta(0, 10)):
+    def add(self, key, value, TTL=timedelta(0, 300)):
         expire = datetime.utcnow() + TTL
         self.data[key] = (expire, self.data.setdefault(key, (None, ""))[1] + value)
 
@@ -26,9 +47,6 @@ class TTLDict:
         return self.data.get(key, (None, ""))[1]
 
     def _clean(self):
-
-        """ Remove expired dictionary entries """
-
         data = {}
         for (key, (TTL, value)) in self.data.iteritems():
             if TTL > datetime.utcnow():
@@ -36,6 +54,14 @@ class TTLDict:
         self.data = data
 
 
+"""
+Purpose: Wrapper for a python dictionary implementing time to live expiry for entires
+Constructor: Cache() takes no arguments.
+Public methods:
+    get_cache()              :::: Returns whole TTL dictionary
+    search_cache(key)        :::: Gets a key from the cache, if avaliable
+    update_cache(key, value) :::: Add a key/value pair to the cache
+"""
 class Cache(TTLDict):
 
     def get_cache(self):
@@ -45,7 +71,8 @@ class Cache(TTLDict):
         return self.get(key)
 
     def update_cache(self, key, value):
-        try:
+        try: 
+        """ Parse page (value) for TTL to use. Otherwise use TTL default"""
             current_time = datetime.utcnow()
 
             expiration = ' '.join([
