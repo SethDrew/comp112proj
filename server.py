@@ -41,6 +41,18 @@ Public methods:
     handle_close() :::: Closes a TCP connection
 
 """
+
+
+def narrow_class(sock):
+    value = sock.recv(1)
+    if not value == "@":
+        logging.debug("Web Client Request")
+        Proxy(socket=sock, first_byte=value)
+    else:
+        logging.debug("Proxy Client Connection")
+        Proxy_Client(sock=sock)
+
+
 class Server(asyncore.dispatcher):
 
     def __init__(self, address):
@@ -53,9 +65,8 @@ class Server(asyncore.dispatcher):
 
     def handle_accept(self):
         client = self.accept()
-        Proxy(socket=client[0])
-        logging.debug(client)
         logging.debug("Accepted Connection from %s", client[1])
+        narrow_class(client[0])
 
     def handle_close(self):
         logging.debug("SERVER CLOSING")
@@ -80,10 +91,10 @@ def start_server(port, proxies):
 
     for proxy in proxies:
         logging.debug("Initializing clients")
-        Proxy_Client(proxy, port)
+        Proxy_Client(sock=None, port=proxy)
 
     while True:
-        asyncore.loop(timeout=1, count=1)
+        asyncore.loop(timeout=10, count=1)
         advertise_bloom()
 
 

@@ -49,7 +49,6 @@ Public methods:
     handle_write() :::: Write to the destination
     handle_read()  :::: Reads response from destination
     handle_close() :::: Closes the connection
-
 """
 class Forwarding_Agent(asyncore.dispatcher):
 
@@ -64,6 +63,7 @@ class Forwarding_Agent(asyncore.dispatcher):
         self.connect(destination)
 
     def handle_write(self):
+        logging.debug("Forwarding Agent Writing")
         sent = self.send(self.write_buffer)
         self.write_buffer = self.write_buffer[sent:]
 
@@ -71,6 +71,7 @@ class Forwarding_Agent(asyncore.dispatcher):
         return len(self.write_buffer)
 
     def handle_read(self):
+        logging.debug("Forwarding Agent Reading")
         self.read_buffer += self.recv(BUFF_SIZE)
 
     def handle_close(self):
@@ -79,58 +80,6 @@ class Forwarding_Agent(asyncore.dispatcher):
 
         logging.debug("Proxy closing")
         self.close()
-
-
-"""
-Purpose: Helper for the main proxy. Handles messages sent between proxy peers
-Constructor: Proxy_Mixin() takes no arguments
-Public methods:
-    intra_proxy_write() :::: Write to other proxies.
-    intra_proxy_read()  :::: Parse an incoming message from a proxy
-                              Bloom filter: update records or add new filter to records
-                              Data: give client the data from peer cache
-
-"""
-class Proxy_Mixin:
-
-    def __init__(self):
-        pass
-
-    def intra_proxy_write(self):
-        if self.write_buffer:
-            #logging.debug("Writing %s", self.write_buffer)
-            sent = self.send(self.write_buffer)
-            self.write_buffer = self.write_buffer[sent:]
-
-    def intra_proxy_read(self, message):
-        if not message or message[0] != PROXY_SENTINEL:
-            self.reading = False
-            return
-
-        global BLOOM_FILTERS
-        self.intra_proxy = True
-
-        message_type = message[2:]
-        #logging.debug("Received message from proxy: %s", message_type)
-        if message[1] == BLOOM_ADVERT:
-            # Add our object (representing another proxy) to the BLOOM_FILTERS
-            logging.debug("Updating the bloom filter")
-            BLOOM_FILTERS[self] = Counting_Bloom(items=list(message_type))
-        elif message[1] == CACHE_REQ:
-            response_message = CACHE.get(message_type.request)
-            if not response:
-                response_message = ERROR
-            response = Cache_Res(response_message)
-            self.write_buffer = PROXY_SENTINEL + CACHE_RES + pickle.dumps(response)
-        elif message[1] == CACHE_RES:
-            # We got a response from a server's cache
-            # TODO: what if the response comes in two different packets?
-            if message_type.response == ERROR:
-                # Spawn a Forwarding_Agent
-                return
-            else:
-                self.read_buffer = message_type.response
-                self.reading = True
 
 
 """
@@ -144,124 +93,119 @@ Public methods:
                              checks all bloom filters known by the proxy.
 
 """
-class Proxy(asyncore.dispatcher, Proxy_Mixin):
+class Proxy(asyncore.dispatcher):
 
-    def __init__(self, socket):
+    def __init__(self, socket, first_byte):
         asyncore.dispatcher.__init__(self, sock=socket)
         self.sock = socket
         self.forward = None
         self.intra_proxy = False
-        self.write_buffer = ""
-        self.read_buffer = ""
-        self.last_broadcast = datetime.utcnow()
+
+        self.write_client_buffer = ""
+        self.read_client_buffer = first_byte
 
     def writable(self):
-        if self.intra_proxy:
-            return self.write_buffer and len(self.write_buffer)
-        else:
-            return self.forward and len(self.forward.read_buffer)
+        return self.write_client_buffer or (self.forward and self.forward.read_buffer)
 
-    """
-        This function contains the main
-    """
     def handle_read(self):
-        request = self.recv(BUFF_SIZE)
-        if not request:
+        self.read_client_buffer += self.recv(BUFF_SIZE)
+        if not self.read_client_buffer:
             return
 
-        if self.intra_proxy:
-            self.write_buffer += request
-        elif request[0] != PROXY_SENTINEL:
-            self.intra_proxy = False
+        request_lines = self.read_client_buffer.splitlines()
+        host = [
+            x.split()[1] for x in request_lines if x.startswith("Host:")
+        ]
 
-            host = [
-                x.split()[1] for x in request.splitlines() if x.startswith("Host:")
-            ]
+        if not host:
+            self.forward.write_buffer += self.read_client_buffer
+            return
 
-            if not host:
-                self.forward.write_buffer += request
+        self.host = host[0]
+
+        cache_contains = CACHE.search_cache(self.host)
+        if cache_contains:
+            logging.debug("GOT FROM CACHE")
+            self.write_client_buffer += cache_contains
+            return
+
+        for (proxy, bloom_filter) in BLOOM_FILTERS.iteritems():
+            logging.debug("Checking bloom filters")
+            if bloom_filter.query(self.host):
+                logging.debug("A proxy had the request cached")
+                proxy.write_buffer += PROXY_SENTINEL + CACHE_REQ + self.host
+                self.forward = proxy
                 return
 
-            self.host = host[0]
+        # None of the proxies have the host cached
+        self.forward = Forwarding_Agent((host[0], WEB_SERVER_PORT),
+                                        self.read_client_buffer)
+        self.read_client_buffer = ""
 
-            # TODO: hash host self.host and for each proxy key in BLOOM_FILTERS,
-            # check against it's bloom filter value.
-            # If it exists, use that proxy to get the data
-
-            # TODO: Seth, is this what I'm supposed to do?
-
-            for (proxy, bloom_filter) in BLOOM_FILTERS.iteritems():
-                logging.debug("Checking bloom filters")
-                if bloom_filter.query(self.host):
-                    logging.debug("A proxy had the request cached")
-                    proxy.write_buffer = PROXY_SENTINEL + CACHE_REQ + self.host
-                    self.forward = proxy
-                    return
-
-            # None of the proxies have the host cached
-            self.forward = Forwarding_Agent((host[0], WEB_SERVER_PORT),
-                                            request)
-        else:
-            self.intra_proxy = True
-            self.intra_proxy_read(request)
-
-    """
-    (1) Responding to the client with the data requested. The proxy's cache gets
-    updated if the data came from the internet and not a peer.
-
-    (2) Writes buffered data to a peer
-    """
     def handle_write(self):
-        logging.debug("Writing to socket")
-
-        if not self.intra_proxy and self.forward:
+        #logging.debug("Writing to socket")
+        if self.write_client_buffer:
+            sent = self.send(self.write_client_buffer)
+            self.write_client_buffer = self.write_client_buffer[sent:]
+        if self.forward and self.forward.read_buffer:
             sent = self.send(self.forward.read_buffer)
             CACHE.update_cache(self.host, self.forward.read_buffer[:sent])
-            logging.debug("Updated Bloom Filter: %s", CACHE.get_bloom())
+            #logging.debug("Updated Bloom Filter: %s", CACHE.get_bloom())
             self.forward.read_buffer = self.forward.read_buffer[sent:]
-
-        elif self.intra_proxy:
-            logging.debug("From %s: %s", self.sock, self.write_buffer)
-            self.intra_proxy_write()
 
     """closing the proxy"""
     def handle_close(self):
         while self.writable():
             self.handle_write()
+        self.close()
 
-        if not self.intra_proxy:
-            logging.debug("FINAL CACHE %s", CACHE.get_cache())
-            self.close()
 
-"""
-Purpose:???
-Constructor:
-Public methods:
-            Wrappers for asyncore methods
-"""
-class Proxy_Client(asyncore.dispatcher, Proxy_Mixin):
+class Proxy_Client(asyncore.dispatcher):
 
-    def __init__(self, port, source):
-        asyncore.dispatcher.__init__(self)
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.port = port
-        self.source = source
-        self.connect(('localhost', port))
+    def __init__(self, sock=None, port=None):
+        logging.debug("Sock %s, port %s", sock, port)
+        asyncore.dispatcher.__init__(self, sock=sock)
+        if not sock:
+            self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.port = port
+            if self.port:
+                self.connect(('localhost', port))
 
-        logging.debug("Sending initial bloom")
         self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + str(CACHE.get_bloom())
+        self.read_buffer = ""
 
     def writable(self):
-        logging.debug("From %s To %s: %s", self.source, self.port, self.write_buffer)
         return self.write_buffer
 
     def handle_write(self):
-        self.intra_proxy_write()
+        try:
+            if self.write_buffer:
+                sent = self.send(self.write_buffer)
+                self.write_buffer = self.write_buffer[sent:]
+        except Exception:
+            self.close()
 
     def handle_read(self):
-        request = self.recv(BUFF_SIZE)
+        try:
+            message = self.recv(BUFF_SIZE)
 
-        self.intra_proxy_read(request)
+            if not message[0] == PROXY_SENTINEL:
+                return
+
+            if message[1] == BLOOM_ADVERT:
+                BLOOM_FILTERS[self] = Counting_Bloom(items=list(message[2:]))
+            elif message[1] == CACHE_REQ:
+                response = PROXY_SENTINEL + CACHE_RES
+                cached = CACHE.get(message[2:])
+                if not cached:
+                    response += ERROR
+                else:
+                    response += cached
+                self.write_buffer = respons
+            elif message[1] == CACHE_RES:
+                self.read_buffer = message[2:]
+        except Exception:
+            self.close()
 
     def handle_close(self):
         return
