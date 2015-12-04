@@ -1,0 +1,77 @@
+Seth Drew and Jacob Apkon
+Proxy with Shared Caching
+Comp 112
+12/4/15
+
+OVERVIEW:
+We wrote an HTTP Proxy in Python that when given a request, first
+checks its own cache for the response, then checks to see if other proxies it
+knows about have the response cached, then finally sends a request to the
+server if there were no cache hits. We use Bloom Filters to broadcast each
+proxy's cached content. Our proxy was written in Python. The program takes at
+least one argument which is the port to run on, then there are optional
+arguments for othe proxies to connect to. Those arguments are given with
+hostname,port tuples (not surrounded in parentheses). For example, if we run
+python server.py 9000 &, then we can run python server.py 9001 localhost,9000
+to connect to the first instantiated proxy. We have a start and stop scripts to
+make starting and stopping the proxies easier. To start a standalone proxy run
+source start PORT, to start a proxy that can talk to other existing proxies run
+source start PORT host1,port1 host2,port2. Running ./stop kills all instances
+of server.py running on the machine and clears log_proxy.
+
+BLOOM fILTERS:
+Whenever a proxy updates its cache, we add or delete the appropriate key to the
+proxy's Bloom Filter. Our Bloom Filters are calculated using six md5 hashing
+functions. Blooms are broadcasted between proxies every 10 seconds. We made a
+couple of assumptions when calculating the number of bytes for the Bloom
+Filter, first, there will be  around 30 items in each cache at a time (a low
+estimate). Second, a 1%-2% false positive rate is acceptable. Using the
+equation for the ideal number of hashes, k = ln(2) * (m/n) where m is the
+number of items in the filter, n is the number of keys we are storing, and k is
+the number of hash functions used, we will have m = 256 to guarantee a 1/100
+error rate.
+
+CACHING:
+On receiving and uncached request from a client, we forward the request to the
+server, and parse the response for a TTL Value. We store this value as a
+datetime object with the rest of the response in the cache. Anytime the cache
+is queried, the expired entries are removed. If there was no TTL Value given,
+we default to a TTL Value of 300 seconds.
+
+PROXY:
+When a Proxy receives a request on the master socket, it instantiates one of
+two classes as a wrapper for the socket, either a Proxy() or a Proxy_Client().
+Proxies are client facing, they handle a client's HTTP Request and send them a
+response. Proxy_Clients are used for inter-proxy communications. When a Proxy()
+receives a request from a client, it sees if the response is cached locally, if
+it is, it sends the response to the client. If it isn't cached locally, the
+Proxy can query all of the Bloom Filters it knows about (each corresponding
+with a Proxy_Client()), if querying the Bloom Filter returns True, the Proxy()
+instance uses the Proxy_Client() instance to get the data for us. We do not
+then cache this data received from another Proxy. If the response isn't cached
+locally or on another Proxy, we spawn a Forwarding_Agent() which makes the
+request to the server. If there was a False positive in one of the Bloom
+Filters, we do not check the remaining filters, we just forward the request to
+the destination.  Proxy(), Proxy_Client(), and Forwarding_Agent() all inherit
+from ayncore.dispatcher.
+
+ASYNCORE:
+ayncore is a built in Python Libray that provides an inheritable class to
+asynchronously read and write to and from a socket. Class instances are added
+to the asyncore.loop() event loop. Each instance is associated with only one
+socket to read and write to. For every instance in the event loop, asyncore
+checks if it's readable and writable. If it is, it calls handle_read() and
+handle_write() respectively. handle_read() and handle_write() use recv() and
+send() to read and write to the socket. Instances are removed from the event
+loop when the socket associated with it is closed. We chose this method instead
+of using select, because asyncore.loop() uses select under the hood, and we
+felt that it was easier to separate client facing Proxy() classes with inter
+proxy Proxy_Client() classes. We also decided that using asyncore was not too
+much of a high level abstraction.
+
+NOTES:
+1) Our Proxy does not currently work with Web Browsers. It only works with curl
+2) Caches can cache multiple pages from the same host because the key is the
+first line of the HTTP Request
+3) On False Positives, we just spawn a Forwarding_Agent() to go to the server
+for the response rather than querying the rest of the Bloom Filters.

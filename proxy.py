@@ -78,7 +78,6 @@ class Forwarding_Agent(asyncore.dispatcher):
         while self.writable():
             self.handle_write()
 
-        logging.debug("Proxy closing")
         self.close()
 
 
@@ -105,42 +104,41 @@ class Proxy(asyncore.dispatcher):
         return self.write_client_buffer or (self.forward and self.forward.read_buffer)
 
     def handle_read(self):
-
-        """ Read from the socket, and parse the message for the host """
-
-        self.read_client_buffer += self.recv(BUFF_SIZE)
-        if not self.read_client_buffer:
-            return
-
-        request_lines = self.read_client_buffer.splitlines()
-        host = [
-            x.split()[1] for x in request_lines if x.startswith("Host:")
-        ]
-
-        if not host:
-            self.forward.write_buffer += self.read_client_buffer
-            return
-
-        self.host = host[0]
-
-        cache_contains = CACHE.search_cache(self.host)
-        if cache_contains:
-            logging.debug("Cache Hit")
-            self.write_client_buffer += cache_contains
-            return
-
-        # Check all known bloom filters for a cache hit
-        for (proxy, bloom_filter) in BLOOM_FILTERS.iteritems():
-            if bloom_filter.query(self.host):
-                logging.debug("A proxy had the request cached")
-                proxy.write_buffer += PROXY_SENTINEL + CACHE_REQ + self.host
-                self.forward = proxy
+            self.read_client_buffer += self.recv(BUFF_SIZE)
+            if not self.read_client_buffer:
                 return
 
-        # None of the proxies have the host cached
-        self.forward = Forwarding_Agent((host[0], WEB_SERVER_PORT),
-                                        self.read_client_buffer)
-        self.read_client_buffer = ""
+            request_lines = self.read_client_buffer.splitlines()
+            self.host_key = request_lines[0]
+
+            host = [
+                x.split()[1] for x in request_lines if x.startswith("Host:")
+            ]
+
+            if not host:
+                self.forward.write_buffer += self.read_client_buffer
+                return
+
+            self.host = host[0]
+
+            cache_contains = CACHE.search_cache(self.host_key)
+            if cache_contains:
+                logging.debug("GOT FROM CACHE")
+                self.write_client_buffer += cache_contains
+                return
+
+            for (proxy, bloom_filter) in BLOOM_FILTERS.iteritems():
+                logging.debug("Checking bloom filters for %s", self.host_key)
+                if bloom_filter.query(self.host_key):
+                    logging.debug("A proxy had the request cached")
+                    logging.debug("bloom %s", bloom_filter.get_data())
+                    proxy.write_buffer += PROXY_SENTINEL + CACHE_REQ + self.host_key
+                    self.forward = proxy
+                    return
+
+            # None of the proxies have the host cached
+            self.forward = Forwarding_Agent((self.host, WEB_SERVER_PORT),
+                                            self.read_client_buffer)
 
     def handle_write(self):
 
@@ -151,10 +149,17 @@ class Proxy(asyncore.dispatcher):
             sent = self.send(self.write_client_buffer)
             self.write_client_buffer = self.write_client_buffer[sent:]
         if self.forward and self.forward.read_buffer:
+            if self.forward.read_buffer == ERROR:
+                logging.debug("There was a false positive, forwarding request")
+                self.forward = Forwarding_Agent((self.host, WEB_SERVER_PORT),
+                                                self.read_client_buffer)
+                return
             sent = self.send(self.forward.read_buffer)
             if self.forward.cachable:
-                CACHE.update_cache(self.host, self.forward.read_buffer[:sent])
+                CACHE.update_cache(self.host_key, self.forward.read_buffer[:sent])
             self.forward.read_buffer = self.forward.read_buffer[sent:]
+
+        self.read_client_buffer = ""
 
     def handle_close(self):
 
@@ -237,7 +242,8 @@ class Proxy_Client(asyncore.dispatcher):
             elif message[1] == CACHE_REQ:
                 logging.debug("Got Cache Request for %s", message)
                 response = PROXY_SENTINEL + CACHE_RES
-                cached = CACHE.get(message[2:])
+                #cached = CACHE.get(message[2:])
+                cached = None
                 if not cached:
                     response += ERROR
                 else:
