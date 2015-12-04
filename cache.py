@@ -1,11 +1,11 @@
-""" 
+"""
 Seth Drew and Jacob Apkon
 File: cache.py
 
 This file contains:
     Cache class
         - Used by proxy to store cached web results
-    TTLDict class 
+    TTLDict class
         - Wrapper for a python dictionary that implements time to live expiry of entires
 
 
@@ -26,7 +26,7 @@ Purpose: Wrapper for a python dictionary implementing time to live expiry for en
 Constructor: TTLDict() takes no arguments. Uses a default TTL value of 300 seconds
 Public methods:
     add(key, val, TTL(optional)) :::: Same as dict, optional TTL third argument
-    contains(key)                :::: Same as python dictionary 
+    contains(key)                :::: Same as python dictionary
     remove(key)                  :::: Same as python dictionary
 Private methods:
     _clean()                     :::: removes all expired entires
@@ -71,8 +71,8 @@ class Cache(TTLDict):
         return self.get(key)
 
     def update_cache(self, key, value):
-        try: 
-        """ Parse page (value) for TTL to use. Otherwise use TTL default"""
+        try:
+            """ Parse page (value) for TTL to use. Otherwise use TTL default"""
             current_time = datetime.utcnow()
 
             expiration = ' '.join([
@@ -93,3 +93,5 @@ class Cache(TTLDict):
         except Exception:
             # Choose to default to 10 seconds
             self.add(key, str(value))
+
+    def get_bloom(self)

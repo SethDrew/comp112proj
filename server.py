@@ -1,4 +1,4 @@
-""" 
+"""
 Seth Drew and Jacob Apkon
 File: server.py
 
@@ -50,7 +50,13 @@ class Server(asyncore.dispatcher):
     def handle_close(self):
         self.close()
 
-""" 
+
+def advertise_bloom():
+    message = PROXY_SENTINEL + BLOOM_ADVERT + Bloom_Advert()
+    for proxy, _ in BLOOM_FILTERS.iteritems():
+
+
+"""
 Called when running "source start portno" to instantiate Server class and
 create Proxy_Client for each network proxy supplied at startup.
 
@@ -62,7 +68,9 @@ def start_server(port, proxies):
     for proxy in proxies:
         Proxy_Client(proxy)
 
-    asyncore.loop()
+    while True:
+        asyncore.loop(timeout=10, count=1)
+        advertise_bloom()
 
 
 """ command line arguments for proxies in the network we need to connect to """

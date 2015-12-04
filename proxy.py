@@ -1,17 +1,17 @@
-""" 
+"""
 Seth Drew and Jacob Apkon
 File: proxy.py
 
 Contains the proxy class and helpers. The proxy intercepts http requests and
 checks to see if any proxies connected with it have the data cached. Otherwise,
-it forwards the request to the destination and caches the response for later use. 
+it forwards the request to the destination and caches the response for later use.
 
-Each proxy contains the bloom filters of all it's peers, and advertises its 
+Each proxy contains the bloom filters of all it's peers, and advertises its
 filter periodically. In this way, it can quickly check if it can to ask a peer
 for the data or if it has to forward the request to the server.
 
 Classes that overload asyncore.dispatcher override handle_ functions so that
-requests and responses can be done asynchronously. This method is used instead 
+requests and responses can be done asynchronously. This method is used instead
 of select() calls.
 
 """
@@ -22,6 +22,7 @@ import logging
 import pickle
 from bloom import hashfn
 from cache import Cache
+from datetime import datetime
 
 
 HOST = 'localhost'
@@ -46,7 +47,7 @@ Purpose: Forwards a request to the needed location on a cache miss
 Constructor: Forwarding_Agent() takes no arguments
 Public methods:
     handle_write() :::: Write to the destination
-    handle_read()  :::: Reads response from destination 
+    handle_read()  :::: Reads response from destination
     handle_close() :::: Closes the connection
 
 """
@@ -131,7 +132,7 @@ class Proxy_Mixin:
 
 
 """
-Purpose: Main proxy class. Contains logic for parsing and responding to requests 
+Purpose: Main proxy class. Contains logic for parsing and responding to requests
 on the socket.
 Constructor: Proxy_Mixin is the intra-proxy requset request handler
 Public methods:
@@ -149,13 +150,13 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
         self.intra_proxy = False
         self.forward_port = proxy_port
         self.write_buffer = ""
+        self.last_broadcast = datetime.utcnow()
 
     def writable(self):
         return self.forward and len(self.forward.read_buffer)
 
-
     """
-        This function contains the main 
+        This function contains the main
     """
     def handle_read(self):
         logging.debug("Reading from socket")
@@ -200,7 +201,7 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
             self.intra_proxy_read(request)
 
     """
-    (1) Responding to the client with the data requested. The proxy's cache gets 
+    (1) Responding to the client with the data requested. The proxy's cache gets
     updated if the data came from the internet and not a peer.
 
     (2) Writes buffered data to a peer
@@ -228,7 +229,7 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
 
 """
 Purpose:???
-Constructor: 
+Constructor:
 Public methods:
             Wrappers for asyncore methods
 
