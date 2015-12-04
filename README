@@ -17,7 +17,8 @@ to connect to the first instantiated proxy. We have a start and stop scripts to
 make starting and stopping the proxies easier. To start a standalone proxy run
 source start PORT, to start a proxy that can talk to other existing proxies run
 source start PORT host1,port1 host2,port2. Running ./stop kills all instances
-of server.py running on the machine and clears log_proxy.
+of server.py running on the machine and clears log_proxy. Both the start and
+stop scripts need to be run in Bash, meaning curl also has to be done in Bash.
 
 BLOOM fILTERS:
 Whenever a proxy updates its cache, we add or delete the appropriate key to the
