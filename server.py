@@ -53,7 +53,8 @@ class Server(asyncore.dispatcher):
 
     def handle_accept(self):
         client = self.accept()
-        Proxy(self.host_with_port[1] + 1, socket=client[0])
+        Proxy(socket=client[0])
+        logging.debug(client)
         logging.debug("Accepted Connection from %s", client[1])
 
     def handle_close(self):
@@ -64,14 +65,13 @@ class Server(asyncore.dispatcher):
 def advertise_bloom():
     message = PROXY_SENTINEL + BLOOM_ADVERT + str(CACHE.get_bloom())
     for proxy, _ in BLOOM_FILTERS.iteritems():
-        logging.debug(proxy.socket)
-        proxy.write_buffer = message
+        if not proxy.write_buffer:
+            proxy.write_buffer = message
 
 
 """
 Called when running "source start portno" to instantiate Server class and
 create Proxy_Client for each network proxy supplied at startup.
-
 """
 def start_server(port, proxies):
     logging.debug(proxies)
@@ -80,7 +80,7 @@ def start_server(port, proxies):
 
     for proxy in proxies:
         logging.debug("Initializing clients")
-        Proxy_Client(proxy)
+        Proxy_Client(proxy, port)
 
     while True:
         asyncore.loop(timeout=1, count=1)
@@ -102,7 +102,6 @@ def parse_args():
 
 def main():
     args = parse_args()
-    print args
     start_server(args.port, args.proxies)
 
 

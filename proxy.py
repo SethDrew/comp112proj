@@ -53,7 +53,7 @@ Public methods:
 """
 class Forwarding_Agent(asyncore.dispatcher):
 
-    def __init__(self, address, destination, request):
+    def __init__(self, destination, request):
         asyncore.dispatcher.__init__(self)
         self.read_buffer = ""
         self.write_buffer = request
@@ -98,7 +98,7 @@ class Proxy_Mixin:
 
     def intra_proxy_write(self):
         if self.write_buffer:
-            logging.debug("Writing %s", self.write_buffer)
+            #logging.debug("Writing %s", self.write_buffer)
             sent = self.send(self.write_buffer)
             self.write_buffer = self.write_buffer[sent:]
 
@@ -111,7 +111,7 @@ class Proxy_Mixin:
         self.intra_proxy = True
 
         message_type = message[2:]
-        logging.debug("Received message from proxy: %s", message_type)
+        #logging.debug("Received message from proxy: %s", message_type)
         if message[1] == BLOOM_ADVERT:
             # Add our object (representing another proxy) to the BLOOM_FILTERS
             logging.debug("Updating the bloom filter")
@@ -146,16 +146,20 @@ Public methods:
 """
 class Proxy(asyncore.dispatcher, Proxy_Mixin):
 
-    def __init__(self, proxy_port, socket):
+    def __init__(self, socket):
         asyncore.dispatcher.__init__(self, sock=socket)
+        self.sock = socket
         self.forward = None
         self.intra_proxy = False
-        self.forward_port = proxy_port
         self.write_buffer = ""
+        self.read_buffer = ""
         self.last_broadcast = datetime.utcnow()
 
     def writable(self):
-        return self.forward and len(self.forward.read_buffer)
+        if self.intra_proxy:
+            return self.write_buffer and len(self.write_buffer)
+        else:
+            return self.forward and len(self.forward.read_buffer)
 
     """
         This function contains the main
@@ -164,7 +168,6 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
         request = self.recv(BUFF_SIZE)
         if not request:
             return
-        logging.debug(request)
 
         if self.intra_proxy:
             self.write_buffer += request
@@ -188,6 +191,7 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
             # TODO: Seth, is this what I'm supposed to do?
 
             for (proxy, bloom_filter) in BLOOM_FILTERS.iteritems():
+                logging.debug("Checking bloom filters")
                 if bloom_filter.query(self.host):
                     logging.debug("A proxy had the request cached")
                     proxy.write_buffer = PROXY_SENTINEL + CACHE_REQ + self.host
@@ -195,8 +199,7 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
                     return
 
             # None of the proxies have the host cached
-            self.forward = Forwarding_Agent((HOST, self.forward_port),
-                                            (host[0], WEB_SERVER_PORT),
+            self.forward = Forwarding_Agent((host[0], WEB_SERVER_PORT),
                                             request)
         else:
             self.intra_proxy = True
@@ -212,12 +215,13 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
         logging.debug("Writing to socket")
 
         if not self.intra_proxy and self.forward:
-            logging.debug(self.forward.read_buffer)
             sent = self.send(self.forward.read_buffer)
             CACHE.update_cache(self.host, self.forward.read_buffer[:sent])
+            logging.debug("Updated Bloom Filter: %s", CACHE.get_bloom())
             self.forward.read_buffer = self.forward.read_buffer[sent:]
 
         elif self.intra_proxy:
+            logging.debug("From %s: %s", self.sock, self.write_buffer)
             self.intra_proxy_write()
 
     """closing the proxy"""
@@ -234,20 +238,21 @@ Purpose:???
 Constructor:
 Public methods:
             Wrappers for asyncore methods
-
 """
 class Proxy_Client(asyncore.dispatcher, Proxy_Mixin):
 
-    def __init__(self, port):
+    def __init__(self, port, source):
         asyncore.dispatcher.__init__(self)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.port = port
+        self.source = source
         self.connect(('localhost', port))
 
         logging.debug("Sending initial bloom")
         self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + str(CACHE.get_bloom())
 
     def writable(self):
-        logging.debug(self.write_buffer)
+        logging.debug("From %s To %s: %s", self.source, self.port, self.write_buffer)
         return self.write_buffer
 
     def handle_write(self):
