@@ -42,8 +42,9 @@ class TTLDict:
 
     def add(self, key, value, TTL=timedelta(0, 300)):
         expire = datetime.utcnow() + TTL
-        self.data[key] = (expire, self.data.setdefault(key, (None, ""))[1] + value)
-        self.bloom.add(key)
+        if key not in self.data:
+            self.bloom.add(key)
+        self.data[key] = (expire, value)
 
     def get(self, key):
         self._clean()
