@@ -123,7 +123,8 @@ class Counting_Bloom(object):
             if bit == '1' and self.items[index]:
                 self.items[index] -= 1
     def get_data(self):
-        return ' '.join(self.items)
+        chars = [ str(x) for x in self.items ]
+        return ' '.join(chars)
 
 
 """

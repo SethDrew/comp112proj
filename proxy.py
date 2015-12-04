@@ -172,7 +172,7 @@ class Proxy_Client(asyncore.dispatcher):
             if self.port:
                 self.connect(('localhost', port))
 
-        self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + pickle.dumps(CACHE.get_bloom())
+        self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + CACHE.get_bloom()
         self.read_buffer = ""
 
         self.last_transmit = datetime.utcnow()
@@ -183,7 +183,7 @@ class Proxy_Client(asyncore.dispatcher):
     def readable(self):
         now = datetime.utcnow()
         if (now - self.last_transmit).total_seconds() > 10:
-            self.write_buffer += PROXY_SENTINEL + BLOOM_ADVERT + pickle.dumps(CACHE.get_bloom())
+            self.write_buffer += PROXY_SENTINEL + BLOOM_ADVERT + CACHE.get_bloom()
         self.last_transmit = now
         return True
 
@@ -203,17 +203,21 @@ class Proxy_Client(asyncore.dispatcher):
                 return
 
             if message[1] == BLOOM_ADVERT:
-                logging.debug(message)
-                BLOOM_FILTERS[self] = Counting_Bloom(items=pickle.loads(message[2:]))
+                logging.debug("Received Bloom")
+                new_bloom = [ int(x) for x in message[2:].split() ]
+                logging.debug("New bloom: %s", new_bloom)
+                BLOOM_FILTERS[self] = Counting_Bloom(items=new_bloom)
             elif message[1] == CACHE_REQ:
+                logging.debug("Got Cache Request for %s", message)
                 response = PROXY_SENTINEL + CACHE_RES
                 cached = CACHE.get(message[2:])
                 if not cached:
                     response += ERROR
                 else:
                     response += cached
-                self.write_buffer = respons
+                self.write_buffer = response
             elif message[1] == CACHE_RES:
+                logging.debug("Got Cache Response")
                 self.read_buffer = message[2:]
         except Exception:
             self.close()
