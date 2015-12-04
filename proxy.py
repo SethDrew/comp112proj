@@ -20,7 +20,6 @@ import socket
 import asyncore
 import logging
 import pickle
-from bloom import hashfn
 from cache import Cache
 from datetime import datetime
 
