@@ -13,7 +13,7 @@ This file contains:
 
 
 from datetime import datetime, timedelta
-from bloom import CountingBloom
+from bloom import Counting_Bloom
 import logging
 
 
@@ -35,7 +35,7 @@ Private methods:
 class TTLDict:
     def __init__(self):
         self.data = {}
-        self.bloom = CountingBloom()
+        self.bloom = Counting_Bloom()
 
     def contains(self, key):
         return key in self.data
@@ -50,13 +50,10 @@ class TTLDict:
         return self.data.get(key, (None, ""))[1]
 
     def _clean(self):
-        data = {}
         for (key, (TTL, value)) in self.data.iteritems():
             if TTL < datetime.utcnow():
-                data.pop(key, None)
+                self.data.pop(key, None)
                 self.bloom.remove(key)
-
-
 
 
 """
@@ -100,13 +97,4 @@ class Cache(TTLDict):
             self.add(key, str(value))
 
     def get_bloom(self):
-        return self.bloom
-
-
-
-
-
-
-
-
-
+        return self.bloom.get_data()

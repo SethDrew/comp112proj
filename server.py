@@ -12,7 +12,16 @@ import argparse
 import socket
 import asyncore
 import logging
-from proxy import Proxy, Proxy_Client
+import pickle
+from proxy import (
+    Proxy,
+    Proxy_Client,
+    CACHE,
+    BLOOM_FILTERS,
+    PROXY_SENTINEL,
+    BLOOM_ADVERT,
+    Bloom_Advert
+)
 
 
 HOST = 'localhost'
@@ -48,12 +57,15 @@ class Server(asyncore.dispatcher):
         logging.debug("Accepted Connection from %s", client[1])
 
     def handle_close(self):
+        logging.debug("SERVER CLOSING")
         self.close()
 
 
 def advertise_bloom():
-    message = PROXY_SENTINEL + BLOOM_ADVERT + Bloom_Advert()
+    message = PROXY_SENTINEL + BLOOM_ADVERT + str(CACHE.get_bloom())
     for proxy, _ in BLOOM_FILTERS.iteritems():
+        logging.debug(proxy.socket)
+        proxy.write_buffer = message
 
 
 """
@@ -62,14 +74,16 @@ create Proxy_Client for each network proxy supplied at startup.
 
 """
 def start_server(port, proxies):
+    logging.debug(proxies)
     address = (HOST, port)
     server = Server(address)
 
     for proxy in proxies:
+        logging.debug("Initializing clients")
         Proxy_Client(proxy)
 
     while True:
-        asyncore.loop(timeout=10, count=1)
+        asyncore.loop(timeout=1, count=1)
         advertise_bloom()
 
 
@@ -88,6 +102,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    print args
     start_server(args.port, args.proxies)
 
 

@@ -1,4 +1,4 @@
-""" 
+"""
 Seth Drew and Jacob Apkon
 File: bloom.py
 
@@ -9,7 +9,7 @@ https://gist.github.com/cwvh/1453729#file-countingbloom-py
 http://www.eecs.harvard.edu/~michaelm/NEWWORK/postscripts/BloomFilterSurvey.pdf
 
 Bloom filter applications:
-    - How many hash functions to use. 
+    - How many hash functions to use.
 
         Assumptions:
             - around 30 items in each cache at a time
@@ -30,10 +30,10 @@ import hashlib # Contains md5(), sha1(), sha224(), sha256(), sha384(), and sha51
 m = 256
 
 
-""" 
+"""
 Purpose: Compute location of item in bloom filter
 Arguments: A key value to be hashed for the bloom filter
-Returns: vector of 256 bits long containing k (6) 1's representing the six 
+Returns: vector of 256 bits long containing k (6) 1's representing the six
 hash function results
 """
 def hashfn(item):
@@ -76,10 +76,10 @@ def hashfn(item):
         (1 << hash_values[3] % m) |
         (1 << hash_values[4] % m) |
         (1 << hash_values[5] % m) |
-        (1 << hash_values[6] % m) 
+        (1 << hash_values[6] % m)
 
     )
-""" 
+"""
 Purpose: wrapper for hashfn
 Arguments: A key value to be hashed for the bloom filter
 Returns: see hashfn
@@ -97,9 +97,9 @@ Public methods:
     remove(key) ::: Remove an item from the filter
     get_data() :::: Retrieve the raw bit array for sending over the network
 """
-class CountingBloom(object):
+class Counting_Bloom(object):
     def __init__(self, items=None):
-        if items:          
+        if items:
             self.items = items
 
         else:
@@ -130,7 +130,7 @@ class CountingBloom(object):
 TESTING FOR THE FILTER
 """
 """
-bloom = CountingBloom()
+bloom = Counting_Bloom()
 args = ('fofdsao', 'bafdsar', 'bfdsafdsaafsdaz', "asdf", "vcxjznlk", "sxiuzbnjkq", "voczuyhjwq", "qo8uwehrjnm")
 for arg in args:
     bloom.add(arg)

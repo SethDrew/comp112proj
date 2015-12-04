@@ -20,6 +20,7 @@ import socket
 import asyncore
 import logging
 import pickle
+from bloom import Counting_Bloom
 from cache import Cache
 from datetime import datetime
 
@@ -97,6 +98,7 @@ class Proxy_Mixin:
 
     def intra_proxy_write(self):
         if self.write_buffer:
+            logging.debug("Writing %s", self.write_buffer)
             sent = self.send(self.write_buffer)
             self.write_buffer = self.write_buffer[sent:]
 
@@ -108,11 +110,12 @@ class Proxy_Mixin:
         global BLOOM_FILTERS
         self.intra_proxy = True
 
-        message_type = pickle.loads(message[2:])
-        logging.debug("Received message from proxy: %s", message)
+        message_type = message[2:]
+        logging.debug("Received message from proxy: %s", message_type)
         if message[1] == BLOOM_ADVERT:
             # Add our object (representing another proxy) to the BLOOM_FILTERS
-            BLOOM_FILTERS[self] = message.bit_vector
+            logging.debug("Updating the bloom filter")
+            BLOOM_FILTERS[self] = Counting_Bloom(items=list(message_type))
         elif message[1] == CACHE_REQ:
             response_message = CACHE.get(message_type.request)
             if not response:
@@ -158,7 +161,6 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
         This function contains the main
     """
     def handle_read(self):
-        logging.debug("Reading from socket")
         request = self.recv(BUFF_SIZE)
         if not request:
             return
@@ -197,6 +199,7 @@ class Proxy(asyncore.dispatcher, Proxy_Mixin):
                                             (host[0], WEB_SERVER_PORT),
                                             request)
         else:
+            self.intra_proxy = True
             self.intra_proxy_read(request)
 
     """
@@ -240,17 +243,17 @@ class Proxy_Client(asyncore.dispatcher, Proxy_Mixin):
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect(('localhost', port))
 
-        bloom = Bloom_Advert(bin(0))
-        self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + pickle.dumps(bloom)
+        logging.debug("Sending initial bloom")
+        self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + str(CACHE.get_bloom())
 
     def writable(self):
+        logging.debug(self.write_buffer)
         return self.write_buffer
 
     def handle_write(self):
         self.intra_proxy_write()
 
     def handle_read(self):
-        logging.debug("Reading from socket")
         request = self.recv(BUFF_SIZE)
 
         self.intra_proxy_read(request)
