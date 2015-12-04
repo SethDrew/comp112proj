@@ -144,7 +144,7 @@ class Proxy(asyncore.dispatcher):
 
     def handle_write(self):
 
-        """ Write what's in the proxies client buffer, and what's the
+        """ Write what's in the proxy's client buffer, and what's the
         forwarding object has read """
 
         if self.write_client_buffer:
@@ -152,9 +152,9 @@ class Proxy(asyncore.dispatcher):
             self.write_client_buffer = self.write_client_buffer[sent:]
         if self.forward and self.forward.read_buffer:
             sent = self.send(self.forward.read_buffer)
-            self.forward.read_buffer = self.forward.read_buffer[sent:]
             if self.forward.cachable:
                 CACHE.update_cache(self.host, self.forward.read_buffer[:sent])
+            self.forward.read_buffer = self.forward.read_buffer[sent:]
 
     def handle_close(self):
 

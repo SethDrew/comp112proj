@@ -82,7 +82,6 @@ def advertise_bloom():
 
 def start_server(port, proxies):
 
-    logging.debug(proxies)
     address = (HOST, port)
     server = Server(address)
 
