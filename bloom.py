@@ -25,18 +25,15 @@ Bloom filter applications:
         Thus, we have k = 6 independent hash functions ideally.
 """
 
+
 import hashlib # Contains md5(), sha1(), sha224(), sha256(), sha384(), and sha512()
 
+
 m = 256
-
-
-"""
-Purpose: Compute location of item in bloom filter
-Arguments: A key value to be hashed for the bloom filter
-Returns: vector of 256 bits long containing k (6) 1's representing the six
-hash function results
-"""
 def hashfn(item):
+
+    """ Returns a 256 bit vector containing result of 6 hashing functions """
+
     hashes = [hashlib.md5(), hashlib.sha224()]
 
     for h in hashes:
@@ -79,25 +76,18 @@ def hashfn(item):
         (1 << hash_values[6] % m)
 
     )
-"""
-Purpose: wrapper for hashfn
-Arguments: A key value to be hashed for the bloom filter
-Returns: see hashfn
-"""
+
+
 def mask(val):
+    """ Creates a mask for val """
     return bin(hashfn(val))[3:]
 
 
-"""
-Purpose: Class containing methods for interacting with bloom filter
-Constructor: Optionally initialize with an integer array
-Public methods:
-    add(key)   :::: Put a new key into the filter
-    query(key) :::: Ask if filter contains. False positives are possible 1.5% of the time
-    remove(key) ::: Remove an item from the filter
-    get_data() :::: Retrieve the raw bit array for sending over the network
-"""
 class Counting_Bloom(object):
+
+    """ Provides methods for adding to, removing from, and querying a bloom
+    filter """
+
     def __init__(self, items=None):
         if items:
             self.items = items
@@ -125,19 +115,3 @@ class Counting_Bloom(object):
     def get_data(self):
         chars = [ str(x) for x in self.items ]
         return ' '.join(chars)
-
-
-"""
-TESTING FOR THE FILTER
-"""
-"""
-bloom = Counting_Bloom()
-args = ('fofdsao', 'bafdsar', 'bfdsafdsaafsdaz', "asdf", "vcxjznlk", "sxiuzbnjkq", "voczuyhjwq", "qo8uwehrjnm")
-for arg in args:
-    bloom.add(arg)
-    print ', '.join(str(bloom.query(arg)) for arg in args)
-for arg in args:
-    bloom.remove(arg)
-    print ', '.join(str(bloom.query(arg)) for arg in args)
-
-"""

@@ -2,12 +2,7 @@
 Seth Drew and Jacob Apkon
 File: cache.py
 
-This file contains:
-    Cache class
-        - Used by proxy to store cached web results
-    TTLDict class
-        - Wrapper for a python dictionary that implements time to live expiry of entires
-
+Provides implementation of TTLDict which is used by a Caching Class
 
 """
 
@@ -22,17 +17,10 @@ logging.basicConfig(filename=LOG_FILE,
                     level=logging.DEBUG)
 
 
-"""
-Purpose: Wrapper for a python dictionary implementing time to live expiry for entires
-Constructor: TTLDict() takes no arguments. Uses a default TTL value of 300 seconds
-Public methods:
-    add(key, val, TTL(optional)) :::: Same as dict, optional TTL third argument
-    contains(key)                :::: Same as python dictionary
-    remove(key)                  :::: Same as python dictionary
-Private methods:
-    _clean()                     :::: removes all expired entires
-"""
 class TTLDict:
+
+    """ Wrapper for Python Dict that removes entries after they expire """
+
     def __init__(self):
         self.data = {}
         self.bloom = Counting_Bloom()
@@ -57,15 +45,10 @@ class TTLDict:
                 self.bloom.remove(key)
 
 
-"""
-Purpose: Wrapper for a python dictionary implementing time to live expiry for entires
-Constructor: Cache() takes no arguments.
-Public methods:
-    get_cache()              :::: Returns whole TTL dictionary
-    search_cache(key)        :::: Gets a key from the cache, if avaliable
-    update_cache(key, value) :::: Add a key/value pair to the cache
-"""
 class Cache(TTLDict):
+
+    """ Cache Class uses urls as keys, and the HTML as values, removes entries
+    when they expire """
 
     def get_cache(self):
         return self.data

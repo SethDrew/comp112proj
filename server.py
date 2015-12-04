@@ -1,7 +1,6 @@
 """
 Seth Drew and Jacob Apkon
-File: server.py
-
+server.py
 
 Contains startup logic for a single proxy.
 """
@@ -11,7 +10,6 @@ import argparse
 import socket
 import asyncore
 import logging
-import pickle
 from proxy import (
     Proxy,
     Proxy_Client,
@@ -19,7 +17,6 @@ from proxy import (
     BLOOM_FILTERS,
     PROXY_SENTINEL,
     BLOOM_ADVERT,
-    Bloom_Advert
 )
 
 
@@ -32,23 +29,17 @@ logging.basicConfig(filename=LOG_FILE,
                     level=logging.DEBUG)
 
 
-"""
-Purpose: ????
-Constructor: Hostname/port tuple to run server on
-Public methods:
-    handle_accept() :::: Assigns a proxy to new incoming socket activity
-    handle_close() :::: Closes a TCP connection
-
-"""
-
-
 def narrow_class(sock):
+
+    """ Read the first byte of the transmission to determine if it's a new
+    proxy or if it's an HTTP client """
+
     # Block until we can read the first byte
     sock.setblocking(1)
     value = sock.recv(1)
 
+    # All proxy communications start with this
     if not value == PROXY_SENTINEL:
-        # All proxy communications start with this
         logging.debug("Web Client Request")
         Proxy(socket=sock, first_byte=value)
     else:
@@ -57,6 +48,9 @@ def narrow_class(sock):
 
 
 class Server(asyncore.dispatcher):
+
+    """ Class that just accepts incoming transmissions, and moves them off of
+    the master socket """
 
     def __init__(self, address):
         asyncore.dispatcher.__init__(self)
@@ -77,17 +71,17 @@ class Server(asyncore.dispatcher):
 
 
 def advertise_bloom():
+
+    """ Send our bloom filter to all known peers """
+
     message = PROXY_SENTINEL + BLOOM_ADVERT + str(CACHE.get_bloom())
     for proxy, _ in BLOOM_FILTERS.iteritems():
         if not proxy.write_buffer:
             proxy.write_buffer = message
 
 
-"""
-Called when running "source start portno" to instantiate Server class and
-create Proxy_Client for each network proxy supplied at startup.
-"""
 def start_server(port, proxies):
+
     logging.debug(proxies)
     address = (HOST, port)
     server = Server(address)
@@ -98,11 +92,12 @@ def start_server(port, proxies):
 
     while True:
         asyncore.loop(timeout=10, count=1)
-        #advertise_bloom()
 
 
-""" command line arguments for proxies in the network we need to connect to """
 def parse_args():
+
+    """ Parse command line arguments """
+
     def address(x):
         host, port = x.split(',')
         return host, int(port)
