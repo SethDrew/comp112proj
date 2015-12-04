@@ -95,7 +95,7 @@ def start_server(port, proxies):
 
     while True:
         asyncore.loop(timeout=10, count=1)
-        advertise_bloom()
+        #advertise_bloom()
 
 
 """ command line arguments for proxies in the network we need to connect to """

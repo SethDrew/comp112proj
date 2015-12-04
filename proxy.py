@@ -130,9 +130,10 @@ class Proxy(asyncore.dispatcher):
             return
 
         for (proxy, bloom_filter) in BLOOM_FILTERS.iteritems():
-            logging.debug("Checking bloom filters")
+            logging.debug("Checking bloom filters for %s", self.host)
             if bloom_filter.query(self.host):
                 logging.debug("A proxy had the request cached")
+                logging.debug("bloom %s", bloom_filter.get_data())
                 proxy.write_buffer += PROXY_SENTINEL + CACHE_REQ + self.host
                 self.forward = proxy
                 return
@@ -149,8 +150,8 @@ class Proxy(asyncore.dispatcher):
             self.write_client_buffer = self.write_client_buffer[sent:]
         if self.forward and self.forward.read_buffer:
             sent = self.send(self.forward.read_buffer)
+            # TODO: Only cache if forwarding_agent
             CACHE.update_cache(self.host, self.forward.read_buffer[:sent])
-            #logging.debug("Updated Bloom Filter: %s", CACHE.get_bloom())
             self.forward.read_buffer = self.forward.read_buffer[sent:]
 
     """closing the proxy"""
@@ -171,11 +172,20 @@ class Proxy_Client(asyncore.dispatcher):
             if self.port:
                 self.connect(('localhost', port))
 
-        self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + str(CACHE.get_bloom())
+        self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + pickle.dumps(CACHE.get_bloom())
         self.read_buffer = ""
+
+        self.last_transmit = datetime.utcnow()
 
     def writable(self):
         return self.write_buffer
+
+    def readable(self):
+        now = datetime.utcnow()
+        if (now - self.last_transmit).total_seconds() > 10:
+            self.write_buffer += PROXY_SENTINEL + BLOOM_ADVERT + pickle.dumps(CACHE.get_bloom())
+        self.last_transmit = now
+        return True
 
     def handle_write(self):
         try:
@@ -193,7 +203,8 @@ class Proxy_Client(asyncore.dispatcher):
                 return
 
             if message[1] == BLOOM_ADVERT:
-                BLOOM_FILTERS[self] = Counting_Bloom(items=list(message[2:]))
+                logging.debug(message)
+                BLOOM_FILTERS[self] = Counting_Bloom(items=pickle.loads(message[2:]))
             elif message[1] == CACHE_REQ:
                 response = PROXY_SENTINEL + CACHE_RES
                 cached = CACHE.get(message[2:])
