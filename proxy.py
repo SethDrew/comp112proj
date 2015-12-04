@@ -219,6 +219,7 @@ class Proxy_Client(asyncore.dispatcher):
                 sent = self.send(self.write_buffer)
                 self.write_buffer = self.write_buffer[sent:]
         except Exception:
+            BLOOM_FILTERS.pop(self, default=None)
             self.close()
 
     def handle_read(self):
@@ -242,8 +243,7 @@ class Proxy_Client(asyncore.dispatcher):
             elif message[1] == CACHE_REQ:
                 logging.debug("Got Cache Request for %s", message)
                 response = PROXY_SENTINEL + CACHE_RES
-                #cached = CACHE.get(message[2:])
-                cached = None
+                cached = CACHE.get(message[2:])
                 if not cached:
                     response += ERROR
                 else:
@@ -253,6 +253,7 @@ class Proxy_Client(asyncore.dispatcher):
                 logging.debug("Got Cache Response")
                 self.read_buffer = message[2:]
         except Exception:
+            BLOOM_FILTERS.pop(self, default=None)
             self.close()
 
     def handle_close(self):

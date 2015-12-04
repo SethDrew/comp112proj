@@ -91,7 +91,6 @@ class Counting_Bloom(object):
     def __init__(self, items=None):
         if items:
             self.items = items
-
         else:
             self.items = [0] * m
 
@@ -112,6 +111,7 @@ class Counting_Bloom(object):
         for index, bit in enumerate(bits):
             if bit == '1' and self.items[index]:
                 self.items[index] -= 1
+
     def get_data(self):
         chars = [ str(x) for x in self.items ]
         return ' '.join(chars)
