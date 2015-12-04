@@ -27,7 +27,7 @@ Bloom filter applications:
 
 import hashlib # Contains md5(), sha1(), sha224(), sha256(), sha384(), and sha512()
 
-m = 256
+m = 10000
 
 
 """
