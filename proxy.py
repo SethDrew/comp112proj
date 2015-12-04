@@ -13,7 +13,6 @@ for the data or if it has to forward the request to the server.
 Classes that overload asyncore.dispatcher override handle_ functions so that
 requests and responses can be done asynchronously. This method is used instead
 of select() calls.
-
 """
 
 import socket
@@ -56,6 +55,7 @@ class Forwarding_Agent(asyncore.dispatcher):
         asyncore.dispatcher.__init__(self)
         self.read_buffer = ""
         self.write_buffer = request
+        self.cachable = True
 
         logging.debug("Connecting to %s", destination)
 
@@ -150,9 +150,8 @@ class Proxy(asyncore.dispatcher):
             self.write_client_buffer = self.write_client_buffer[sent:]
         if self.forward and self.forward.read_buffer:
             sent = self.send(self.forward.read_buffer)
-            # TODO: Only cache if forwarding_agent
-            CACHE.update_cache(self.host, self.forward.read_buffer[:sent])
             self.forward.read_buffer = self.forward.read_buffer[sent:]
+            CACHE.update_cache(self.host, self.forward.read_buffer[:sent])
 
     """closing the proxy"""
     def handle_close(self):
@@ -163,17 +162,18 @@ class Proxy(asyncore.dispatcher):
 
 class Proxy_Client(asyncore.dispatcher):
 
-    def __init__(self, sock=None, port=None):
-        logging.debug("Sock %s, port %s", sock, port)
+    def __init__(self, sock=None, address=None):
+        logging.debug(address)
         asyncore.dispatcher.__init__(self, sock=sock)
         if not sock:
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.port = port
-            if self.port:
-                self.connect(('localhost', port))
+            self.address = address
+            if self.address:
+                self.connect(address)
 
         self.write_buffer = PROXY_SENTINEL + BLOOM_ADVERT + CACHE.get_bloom()
         self.read_buffer = ""
+        self.cachable = False
 
         self.last_transmit = datetime.utcnow()
 

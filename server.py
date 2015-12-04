@@ -7,7 +7,6 @@ Contains startup logic for a single proxy.
 """
 
 
-
 import argparse
 import socket
 import asyncore
@@ -26,7 +25,7 @@ from proxy import (
 
 HOST = 'localhost'
 BUFF_SIZE = 4096
-MAX_CONNECTIONS = 5
+MAX_CONNECTIONS = 10
 
 LOG_FILE = 'log_proxy'
 logging.basicConfig(filename=LOG_FILE,
@@ -44,8 +43,12 @@ Public methods:
 
 
 def narrow_class(sock):
+    # Block until we can read the first byte
+    sock.setblocking(1)
     value = sock.recv(1)
-    if not value == "@":
+
+    if not value == PROXY_SENTINEL:
+        # All proxy communications start with this
         logging.debug("Web Client Request")
         Proxy(socket=sock, first_byte=value)
     else:
@@ -91,7 +94,7 @@ def start_server(port, proxies):
 
     for proxy in proxies:
         logging.debug("Initializing clients")
-        Proxy_Client(sock=None, port=proxy)
+        Proxy_Client(sock=None, address=proxy)
 
     while True:
         asyncore.loop(timeout=10, count=1)
@@ -100,13 +103,17 @@ def start_server(port, proxies):
 
 """ command line arguments for proxies in the network we need to connect to """
 def parse_args():
+    def address(x):
+        host, port = x.split(',')
+        return host, int(port)
+
     parser = argparse.ArgumentParser()
     parser.add_argument('port',
                         help='Port number to run the server on',
                         type=int)
     parser.add_argument('proxies',
                         help='Other proxies to connect to',
-                        type=int,
+                        type=address,
                         nargs='*')
     return parser.parse_args()
 
